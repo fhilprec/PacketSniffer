@@ -1,3 +1,4 @@
+#include "PCAPWriter.hpp"
 #include <arpa/inet.h>
 #include <array>
 #include <cerrno>
@@ -12,31 +13,31 @@
 #include <netinet/udp.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#include "PCAPWriter.hpp"
 
 class PacketCapture {
 public:
   PacketCapture(int port) : PacketCapture(port, "") {}
 
-  PacketCapture(int port, std::string PcapFilename) 
+  PacketCapture(int port, std::string PcapFilename)
       : port(port), running(false), pcap_filename(PcapFilename) {
-      this->socket_fd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+    this->socket_fd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
 
-      if (socket_fd < 0) {
-          std::cerr << "Failed to create socket: " << strerror(errno) << "\n";
-          std::cerr << "Note: Raw sockets require root privileges\n";
-          throw std::runtime_error("Failed to create socket: " + std::string(strerror(errno)));
-      }
-      
-      if (!pcap_filename.empty()) {
-          pcap_writer = new PCAPWriter(pcap_filename);
-      }
+    if (socket_fd < 0) {
+      std::cerr << "Failed to create socket: " << strerror(errno) << "\n";
+      std::cerr << "Note: Raw sockets require root privileges\n";
+      throw std::runtime_error("Failed to create socket: " +
+                               std::string(strerror(errno)));
+    }
+
+    if (!pcap_filename.empty()) {
+      pcap_writer = new PCAPWriter(pcap_filename);
+    }
   }
-  
-  ~PacketCapture(){
+
+  ~PacketCapture() {
     close(socket_fd);
     if (pcap_writer) {
-        delete pcap_writer;
+      delete pcap_writer;
     }
   };
 
@@ -128,7 +129,6 @@ public:
       std::cout << " | UDP " << src_port << " -> " << dest_port;
     }
 
-
     if (printMacAddresses) {
 
       std::cout << "\nMAC: ";
@@ -146,16 +146,14 @@ public:
                  size - sizeof(struct ethhdr) - (ip_header->ihl * 4));
 
     if (!pcap_filename.empty()) {
-        pcap_writer->writePcapPacket(buffer.data(), size);
+      pcap_writer->writePcapPacket(buffer.data(), size);
     }
   }
-
-
 
 private:
   int socket_fd;
   bool running;
   int port;
   std::string pcap_filename;
-  PCAPWriter * pcap_writer = nullptr;
+  PCAPWriter *pcap_writer = nullptr;
 };
