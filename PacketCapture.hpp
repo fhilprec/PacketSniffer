@@ -12,19 +12,33 @@
 #include <netinet/udp.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include "PCAPWriter.hpp"
 
 class PacketCapture {
 public:
-  PacketCapture(int port) : port(port), running(false) {
-    this->socket_fd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+  PacketCapture(int port) : PacketCapture(port, "") {}
 
-    if (socket_fd < 0) {
-      std::cerr << "Failed to create socket: " << strerror(errno) << "\n";
-      std::cerr << "Note: Raw sockets require root privileges\n";
-      exit(1);
+  PacketCapture(int port, std::string PcapFilename) 
+      : port(port), running(false), pcap_filename(PcapFilename) {
+      this->socket_fd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+
+      if (socket_fd < 0) {
+          std::cerr << "Failed to create socket: " << strerror(errno) << "\n";
+          std::cerr << "Note: Raw sockets require root privileges\n";
+          throw std::runtime_error("Failed to create socket: " + std::string(strerror(errno)));
+      }
+      
+      if (!pcap_filename.empty()) {
+          pcap_writer = new PCAPWriter(pcap_filename);
+      }
+  }
+  
+  ~PacketCapture(){
+    close(socket_fd);
+    if (pcap_writer) {
+        delete pcap_writer;
     }
   };
-  ~PacketCapture(){};
 
   void startCapture() {
     std::cout << "Packet sniffer started. Capturing packets";
@@ -78,6 +92,7 @@ public:
     src_addr.s_addr = ip_header->saddr;
     dest_addr.s_addr = ip_header->daddr;
 
+    // Filter out localhost traffic
     if ((ntohl(src_addr.s_addr) >> 24) == 127 ||
         (ntohl(dest_addr.s_addr) >> 24) == 127) {
       return;
@@ -99,6 +114,7 @@ public:
       dest_port = ntohs(udp->dest);
     }
 
+    // Filter by port if specified
     if (port > 0 && src_port != port && dest_port != port) {
       return;
     }
@@ -111,6 +127,7 @@ public:
     } else if (ip_header->protocol == IPPROTO_UDP) {
       std::cout << " | UDP " << src_port << " -> " << dest_port;
     }
+
 
     if (printMacAddresses) {
 
@@ -127,10 +144,18 @@ public:
     std::cout << " | Size: " << size << " bytes\n";
     printpayload(buffer.data() + sizeof(struct ethhdr) + (ip_header->ihl * 4),
                  size - sizeof(struct ethhdr) - (ip_header->ihl * 4));
+
+    if (!pcap_filename.empty()) {
+        pcap_writer->writePcapPacket(buffer.data(), size);
+    }
   }
+
+
 
 private:
   int socket_fd;
   bool running;
   int port;
+  std::string pcap_filename;
+  PCAPWriter * pcap_writer = nullptr;
 };

@@ -1,1 +1,4 @@
 sniffer 
+*.pcap
+packet_sniffer /*ignore executable files*/
+packet_sniffer.exe
