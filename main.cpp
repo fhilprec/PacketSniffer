@@ -1,7 +1,9 @@
 #include "PacketCapture.hpp"
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <sys/socket.h>
+#include <thread>
 
 int main(int argc, char *argv[]) {
 
@@ -10,12 +12,17 @@ int main(int argc, char *argv[]) {
   if (argc > 1) {
     port = std::stoi(argv[1]);
     packetCapture = std::make_unique<PacketCapture>(port);
-  }
-  if (argc > 2) {
+  } else if (argc > 2) {
     std::string pcapFile = argv[2];
     packetCapture = std::make_unique<PacketCapture>(port, pcapFile);
+  } else {
+    throw std::runtime_error("Specifiy sufficient args");
   }
 
-  packetCapture->startCapture();
+  std::thread t([pc = std::move(packetCapture)]() { pc->startCapture(); });
+  
+  
+  
+  t.join();
   return 0;
 }
