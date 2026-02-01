@@ -66,7 +66,7 @@ public:
     pcap_file.write(reinterpret_cast<const char *>(&pkt_header),
                     sizeof(pkt_header));
     pcap_file.write(packet_data, packet_len);
-    pcap_file.flush();
+    // Removed flush() - batching will handle flushing
   }
 
 private:
